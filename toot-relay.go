@@ -58,8 +58,8 @@ func main() {
 	http.HandleFunc("/relay-to/", handler)
 
 	if _, err := os.Stat("toot-relay.crt"); !os.IsNotExist(err) {
-		log.Fatal(http.ListenAndServeTLS(":8080", "toot-relay.crt", "toot-relay.key", nil))
+		log.Fatal(http.ListenAndServeTLS(":42069", "toot-relay.crt", "toot-relay.key", nil))
 	} else {
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		log.Fatal(http.ListenAndServe(":42069", nil))
 	}
 }

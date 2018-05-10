@@ -10,8 +10,8 @@ stored in the "p" property of the notification.
 
 ## Usage ##
 
-Run `go build`, run `./toot-relay`. It will listen on port 8080. Subscribe to web
-pushes using the endpoint `http://<your-domain-name>:8080/relay-to/<device-token>".
+Run `go build`, run `./toot-relay`. It will listen on port 42069. Subscribe to web
+pushes using the endpoint `http://<your-domain-name>:42069/relay-to/<device-token>`.
 
 You will need a push notification certificate, which should be put in the same
 directory, named `toot-relay.p12`.
