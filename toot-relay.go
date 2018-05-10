@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/sideshow/apns2"
@@ -55,5 +56,10 @@ func main() {
 	}
 
 	http.HandleFunc("/relay-to/", handler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	if _, err := os.Stat("toot-relay.crt"); !os.IsNotExist(err) {
+		log.Fatal(http.ListenAndServeTLS(":8080", "toot-relay.crt", "toot-relay.key", nil))
+	} else {
+		log.Fatal(http.ListenAndServe(":8080", nil))
+	}
 }

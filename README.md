@@ -13,13 +13,23 @@ stored in the "p" property of the notification.
 Run `go build`, run `./toot-relay`. It will listen on port 8080. Subscribe to web
 pushes using the endpoint `http://<your-domain-name>:8080/relay-to/<device-token>".
 
+You will need a push notification certificate, which should be put in the same
+directory, named `toot-relay.p12`.
+
 ## Status ##
 
 This is currently basically just a proof of concept. It does not implement the
 web push protocol correctly, but it will still work for forwarding pushes.
 
-It also currently doesn't use HTTPS, which probably breaks completely. This will
-be fixed very soon.
+## Regarding HTTPS ##
+
+Mastodon, and possibly others, force SSL when connecting to the push endpoint.
+The service does have rudimentary support; put files named "toot-relay.crt" and
+"toot-relay.key" in the same directory, and those will be loaded and used to
+serve HTTPS instead of HTTP.
+
+In practice, it may be easier to use ngnix or another service to handle HTTPS
+traffic for you, and forward it to the service as plain HTTP.
 
 ## License ##
 
