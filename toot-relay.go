@@ -26,8 +26,8 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	notification.DeviceToken = components[2]
 
 	buffer := new(bytes.Buffer)
-    buffer.ReadFrom(request.Body)
-    body := buffer.Bytes()
+	buffer.ReadFrom(request.Body)
+	body := buffer.Bytes()
 
 	encodedBytes := make([]byte, z85.EncodedLen(len(body)))
 	_, err := z85.Encode(encodedBytes, body)
