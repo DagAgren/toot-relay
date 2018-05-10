@@ -35,6 +35,10 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 
 	payload := payload.NewPayload().Alert("🎺").MutableContent().Custom("p", encodedString)
 
+	if len(components) > 3 {
+		payload.Custom("x", strings.Join(components[3:], "/"))
+	}
+
 	notification := &apns2.Notification{}
 	notification.DeviceToken = token
 	notification.Payload = payload

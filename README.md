@@ -6,12 +6,13 @@ app through APNs.
 
 The client needs to implement a user notification service extension that can
 decrypt the payloads once they arrive. The original payload is z85-encoded and
-stored in the "p" property of the notification.
+stored in the "p" property of the notification. Any extra values supplied in the
+push endpoint URL are passed in "x".
 
 ## Usage ##
 
 Run `go build`, run `./toot-relay`. It will listen on port 42069. Subscribe to web
-pushes using the endpoint `http://<your-domain-name>:42069/relay-to/<device-token>`.
+pushes using the endpoint `http://<your-domain-name>:42069/relay-to/<device-token>[/extra]`.
 
 You will need a push notification certificate, which should be put in the same
 directory, named `toot-relay.p12`.
