@@ -27,6 +27,9 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 
 	buffer := new(bytes.Buffer)
 	buffer.ReadFrom(request.Body)
+	if buffer.Len() % 4 != 0 { buffer.WriteByte(0) }
+	if buffer.Len() % 4 != 0 { buffer.WriteByte(0) }
+	if buffer.Len() % 4 != 0 { buffer.WriteByte(0) }
 	body := buffer.Bytes()
 
 	encodedBytes := make([]byte, z85.EncodedLen(len(body)))
