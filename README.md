@@ -33,6 +33,11 @@ The returned `Location:` header is nonsensical, but contains the APNs ID. I did
 not read the spec closely enough to see if this address is actually used for
 anything, but I do not think it is needed by Mastodon.
 
+Currently only `Content-Encoding: aesgcm` is supported. `aes128gcm` is trivial
+to support in this service, as it just needs to ignore the extra headers used
+by `aesgcm`, but my client-side code does not support it and this it is rejected.
+If your client-side code can handle it, uncomment the line referring to it.
+
 The service could probably be made more efficient by queuing up APNs accesses
 and not waiting for them to finish before returning from the request handler,
 but this has not been implemented at the moment.
