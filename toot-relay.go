@@ -45,20 +45,14 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 
 	buffer := new(bytes.Buffer)
 	buffer.ReadFrom(request.Body)
-	if buffer.Len() % 4 != 0 { buffer.WriteByte(0) }
-	if buffer.Len() % 4 != 0 { buffer.WriteByte(0) }
-	if buffer.Len() % 4 != 0 { buffer.WriteByte(0) }
-	body := buffer.Bytes()
 
-	encodedBytes := make([]byte, z85.EncodedLen(len(body)))
-	_, err := z85.Encode(encodedBytes, body)
+	encodedString, err := encode85(buffer.Bytes())
 	if err != nil {
 		writer.WriteHeader(500)
 		fmt.Fprintln(writer, "Encode error:", err)
 		log.Println("Encode error:", err)
 		return
 	}
-	encodedString := string(encodedBytes)
 
 	payload := payload.NewPayload().Alert("🎺").MutableContent().Custom("p", encodedString)
 
@@ -147,12 +141,23 @@ func encodedValue(header http.Header, name, key string) (string, error) {
 		return "", err
 	}
 
-	encodedBytes := make([]byte, z85.EncodedLen(len(bytes)))
-	if _, err := z85.Encode(encodedBytes, bytes); err != nil {
+	encodedString, err := encode85(bytes)
+	if err != nil {
 		return "", err
 	}
 
-	return string(encodedBytes), nil
+	return encodedString, nil
+}
+
+func encode85(bytes []byte) (string, error) {
+	if len(bytes) % 4 != 0 { bytes = append(bytes, 0) }
+	if len(bytes) % 4 != 0 { bytes = append(bytes, 0) }
+	if len(bytes) % 4 != 0 { bytes = append(bytes, 0) }
+
+	encodedBytes := make([]byte, z85.EncodedLen(len(bytes)))
+	_, err := z85.Encode(encodedBytes, bytes)
+
+	return string(encodedBytes), err
 }
 
 func parseKeyValues(values string) map[string]string {
