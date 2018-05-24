@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/base64"
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
@@ -16,7 +17,6 @@ import (
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"github.com/sideshow/apns2/payload"
-	"github.com/tilinna/z85"
 )
 
 var cert tls.Certificate
@@ -45,15 +45,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 
 	buffer := new(bytes.Buffer)
 	buffer.ReadFrom(request.Body)
-
-	encodedString, err := encode85(buffer.Bytes())
-	if err != nil {
-		writer.WriteHeader(500)
-		fmt.Fprintln(writer, "Encode error:", err)
-		log.Println("Encode error:", err)
-		return
-	}
-
+	encodedString := encode85(buffer.Bytes())
 	payload := payload.NewPayload().Alert("🎺").MutableContent().Custom("p", encodedString)
 
 	if len(components) > 3 {
@@ -141,23 +133,7 @@ func encodedValue(header http.Header, name, key string) (string, error) {
 		return "", err
 	}
 
-	encodedString, err := encode85(bytes)
-	if err != nil {
-		return "", err
-	}
-
-	return encodedString, nil
-}
-
-func encode85(bytes []byte) (string, error) {
-	if len(bytes) % 4 != 0 { bytes = append(bytes, 0) }
-	if len(bytes) % 4 != 0 { bytes = append(bytes, 0) }
-	if len(bytes) % 4 != 0 { bytes = append(bytes, 0) }
-
-	encodedBytes := make([]byte, z85.EncodedLen(len(bytes)))
-	_, err := z85.Encode(encodedBytes, bytes)
-
-	return string(encodedBytes), err
+	return encode85(bytes), nil
 }
 
 func parseKeyValues(values string) map[string]string {
@@ -176,3 +152,46 @@ func parseKeyValues(values string) map[string]string {
   return m
 }
 
+var z85digits = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#")
+
+func encode85(bytes []byte) string {
+	numBlocks := len(bytes) / 4
+	suffixLength := len(bytes) % 4
+
+	encodedLength := numBlocks * 5
+	if suffixLength != 0 {
+		encodedLength += suffixLength + 1
+	}
+
+	encodedBytes := make([]byte, encodedLength)
+
+	src := bytes
+	dest := encodedBytes
+	for block := 0; block < numBlocks; block++ {
+		value := binary.BigEndian.Uint32(src)
+
+		for i := 0; i < 5; i++ {
+			dest[4 - i] = z85digits[value % 85]
+			value /= 85
+		}
+
+		src = src[4:]
+		dest = dest[5:]
+	}
+
+	if suffixLength != 0 {
+		value := 0
+
+		for i := 0; i < suffixLength; i++ {
+			value |= int(src[i])
+			value *= 256
+		}
+
+		for i := 0; i < suffixLength + 1; i++ {
+			dest[suffixLength - i] = z85digits[value % 85]
+			value /= 85
+		}
+	}
+
+	return string(encodedBytes)
+}
