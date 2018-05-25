@@ -183,8 +183,8 @@ func encode85(bytes []byte) string {
 		value := 0
 
 		for i := 0; i < suffixLength; i++ {
-			value |= int(src[i])
 			value *= 256
+			value |= int(src[i])
 		}
 
 		for i := 0; i < suffixLength + 1; i++ {
