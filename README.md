@@ -9,7 +9,10 @@ the iOS client Toot!, but may be of use in other cases too.
 
 Run `go build`, run `./toot-relay`. It will listen on port 42069. Subscribe to web
 pushes using the endpoint
-`http://<your-domain-name>:42069/relay-to/<device-token>[/extra]`.
+`http://<your-domain-name>:42069/relay-to/<environment>/<device-token>[/extra]`,
+where `<environment>` is either `development` or `production`, `<device-token>`
+is the hex encoded device token for the device to push to, and `extra` is any
+extra information you want relayed back to your client.
 
 You will need a push notification certificate, which should be put in the same
 directory, named `toot-relay.p12`.
@@ -44,7 +47,7 @@ The client needs to implement a user notification service extension that can
 decrypt the payloads once they arrive. The original payload is transmitted in the
 `p` property of the notification. The server's public key is transmitted in `k`,
 the cryptographic salt in `s`, and any extra value supplied in the push endpoint
-URL (the `extra` part as shown in the Usage section above) is passed in "x".
+URL (the `extra` part as shown in the Usage section above) is passed in `x`.
 
 ### Encoding ###
 

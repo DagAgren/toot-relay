@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -19,14 +18,19 @@ import (
 	"github.com/sideshow/apns2/payload"
 )
 
-var cert tls.Certificate
+var (
+	developmentClient *apns2.Client
+	productionClient *apns2.Client
+)
 
 func main() {
-	var err error
-	cert, err = certificate.FromP12File("toot-relay.p12", "")
+	cert, err := certificate.FromP12File("toot-relay.p12", "")
 	if err != nil {
     	log.Fatal("Cert error:", err)
 	}
+
+	developmentClient = apns2.NewClient(cert).Development()
+	productionClient = apns2.NewClient(cert).Production()
 
 	http.HandleFunc("/relay-to/", handler)
 
@@ -40,15 +44,24 @@ func main() {
 func handler(writer http.ResponseWriter, request *http.Request) {
 	components := strings.Split(request.URL.Path, "/")
 
+	if len(components) < 4 {
+		writer.WriteHeader(500)
+		fmt.Fprintln(writer, "Invalid URL path:", request.URL.Path)
+		log.Println("Invalid URL path:", request.URL.Path)
+		return
+	}
+
+	isProduction := components[2] == "production"
+
 	notification := &apns2.Notification{}
-	notification.DeviceToken = components[2]
+	notification.DeviceToken = components[3]
 
 	buffer := new(bytes.Buffer)
 	buffer.ReadFrom(request.Body)
 	encodedString := encode85(buffer.Bytes())
 	payload := payload.NewPayload().Alert("🎺").MutableContent().Custom("p", encodedString)
 
-	if len(components) > 3 {
+	if len(components) > 4 {
 		payload.Custom("x", strings.Join(components[3:], "/"))
 	}
 
@@ -98,7 +111,13 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 			notification.Priority = apns2.PriorityHigh
 	}
 
-	client := apns2.NewClient(cert).Development()
+	var client *apns2.Client
+	if isProduction {
+		client = productionClient
+	} else {
+		client = developmentClient
+	}
+
 	res, err := client.Push(notification)
 	if err != nil {
 		writer.WriteHeader(500)
