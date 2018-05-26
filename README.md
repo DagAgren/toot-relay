@@ -15,7 +15,9 @@ is the hex encoded device token for the device to push to, and `extra` is any
 extra information you want relayed back to your client.
 
 You will need a push notification certificate, which should be put in the same
-directory, named `toot-relay.p12`.
+directory, named `toot-relay.p12`. With a production certificate, both pushing
+to production and development environments works. With a development certificate,
+only development will work.
 
 ## Status ##
 
@@ -60,6 +62,18 @@ representing an 8, 16 or 24-bit integer similarly to how normal z85 encoding rep
 
 [z85]: https://rfc.zeromq.org/spec:32/Z85/
 [z85ext]: http://grokbase.com/t/zeromq/zeromq-dev/144nd380c4/rfc-32-z85-requiring-frames-to-be-multiples-of-4-or-5-bytes
+
+### Example ###
+
+https://gist.github.com/DagAgren/77d82e28174b57f87e194c97fae0898b
+
+This code is an excerpt from the Toot! Mastodon client code base. It is the code
+used to set up cryptographic keys, and then to decrypt a received payload from
+toot-relay.
+
+It does not include the code for actually communicating with the Mastodon instance,
+or for storing the receiver object that contains the cryptographic keys, but it
+is a good starting point for implementing your own web push handling.
 
 ## Regarding HTTPS ##
 
