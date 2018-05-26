@@ -62,10 +62,11 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	payload := payload.NewPayload().Alert("🎺").MutableContent().Custom("p", encodedString)
 
 	if len(components) > 4 {
-		payload.Custom("x", strings.Join(components[3:], "/"))
+		payload.Custom("x", strings.Join(components[4:], "/"))
 	}
 
 	notification.Payload = payload
+	notification.Topic = "cx.c3.toot"
 
 	switch request.Header.Get("Content-Encoding") {
 		case "aesgcm":
@@ -91,7 +92,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 			writer.WriteHeader(415)
 			fmt.Fprintln(writer, "Unsupported Content-Encoding:", request.Header.Get("Content-Encoding"))
 			log.Println("Unsupported Content-Encoding:", request.Header.Get("Content-Encoding"))
-			return		
+			return
 	}
 
 	if seconds := request.Header.Get("TTL"); seconds != "" {
