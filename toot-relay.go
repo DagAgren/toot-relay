@@ -59,7 +59,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	buffer := new(bytes.Buffer)
 	buffer.ReadFrom(request.Body)
 	encodedString := encode85(buffer.Bytes())
-	payload := payload.NewPayload().Alert("🎺").MutableContent().Custom("p", encodedString)
+	payload := payload.NewPayload().Alert("🎺").MutableContent().ContentAvailable().Custom("p", encodedString)
 
 	if len(components) > 4 {
 		payload.Custom("x", strings.Join(components[4:], "/"))
