@@ -1,0 +1,10 @@
+{
+  "name": "toot-relay",
+  "features": {
+    "cloud": "v2"
+  },
+  "files": ["vendor", "toot-relay.go", "toot-relay.p12"],
+  "env": {
+    "P12_PASSWORD": "@p12-password"
+  }
+}

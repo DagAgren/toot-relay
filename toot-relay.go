@@ -24,7 +24,7 @@ var (
 )
 
 func main() {
-	cert, err := certificate.FromP12File("toot-relay.p12", "")
+	cert, err := certificate.FromP12File("toot-relay.p12", os.Getenv("P12_PASSWORD"))
 	if err != nil {
     	log.Fatal("Cert error:", err)
 	}
