@@ -1,2 +1,4 @@
 toot-relay
 *.p12
+*.crt
+*.key

@@ -24,20 +24,43 @@ var (
 )
 
 func main() {
-	cert, err := certificate.FromP12File("toot-relay.p12", os.Getenv("P12_PASSWORD"))
-	if err != nil {
-    	log.Fatal("Cert error:", err)
-	}
+	p12file := env("P12_FILENAME", "toot-relay.p12")
+	p12base64 := env("P12_BASE64", "")
+	p12password := env("P12_PASSWORD", "")
 
-	developmentClient = apns2.NewClient(cert).Development()
-	productionClient = apns2.NewClient(cert).Production()
+	port := env("PORT", "42069")
+	tlsCrtFile := env("CRT_FILENAME", "toot-relay.crt")
+	tlsKeyFile := env("KEY_FILENAME", "toot-relay.key")
+
+	if p12base64 != "" {
+		bytes, err := base64.StdEncoding.DecodeString(p12base64)
+		if err != nil {
+	    	log.Fatal("Base64 decoding error: ", err)
+		}
+
+		cert, err := certificate.FromP12Bytes(bytes, p12password)
+		if err != nil {
+	    	log.Fatal("Error parsing certificate: ", err)
+		}
+
+		developmentClient = apns2.NewClient(cert).Development()
+		productionClient = apns2.NewClient(cert).Production()
+	} else {
+		cert, err := certificate.FromP12File(p12file, p12password)
+		if err != nil {
+	    	log.Fatal("Error loading certificate file: ", err)
+		}
+
+		developmentClient = apns2.NewClient(cert).Development()
+		productionClient = apns2.NewClient(cert).Production()
+	}
 
 	http.HandleFunc("/relay-to/", handler)
 
 	if _, err := os.Stat("toot-relay.crt"); !os.IsNotExist(err) {
-		log.Fatal(http.ListenAndServeTLS(":42069", "toot-relay.crt", "toot-relay.key", nil))
+		log.Fatal(http.ListenAndServeTLS(":" + port, tlsCrtFile, tlsKeyFile, nil))
 	} else {
-		log.Fatal(http.ListenAndServe(":42069", nil))
+		log.Fatal(http.ListenAndServe(":" + port, nil))
 	}
 }
 
@@ -138,6 +161,14 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(res.StatusCode)
 		fmt.Fprintln(writer, res.Reason)
 		log.Printf("Failed to send: %v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
+	}
+}
+
+func env(name, defaultValue string) string {
+	if value, isPresent := os.LookupEnv(name); isPresent {
+		return value
+	} else {
+		return defaultValue
 	}
 }
 
