@@ -3,8 +3,9 @@
   "features": {
     "cloud": "v2"
   },
-  "files": ["vendor", "toot-relay.go", "toot-relay.p12"],
+  "files": ["vendor", "toot-relay.go"],
   "env": {
+    "P12_BASE64": "@p12-base64"
     "P12_PASSWORD": "@p12-password"
   }
 }
