@@ -5,7 +5,6 @@
   },
   "files": ["vendor", "toot-relay.go"],
   "env": {
-    "P12_BASE64": "@p12-base64",
-    "P12_PASSWORD": "@p12-password"
+    "P12_BASE64": "@p12-base64"
   }
 }
