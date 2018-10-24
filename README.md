@@ -5,6 +5,10 @@ push notifications, and forwards the encrypted payloads it receives to an iOS
 app through APNs. It is designed to forward notifications from Mastodon to
 the iOS client Toot!, but may be of use in other cases too.
 
+A simple Dockerfile is included for running the service containerised. There is
+also a configuration file for using the Zeit Now service to host the docker
+image.
+
 ## Usage ##
 
 Run `go build`, run `./toot-relay`. It will listen on port 42069. Subscribe to web
@@ -43,6 +47,21 @@ The service could probably be made more efficient by queuing up APNs accesses
 and not waiting for them to finish before returning from the request handler,
 but this has not been implemented at the moment.
 
+## Configuration ##
+
+The service will read a few environment variables that let you make some adjustments.
+
+* `P12_FILENAME`: The name of the p12 file to use for the push notification certificate.
+  Defaults to `toot-relay.p12`.
+* `P12_BASE64`: Alternative, you can include the base64-encoded data for the entire p12
+  file in this variable. This is useful for hosting services that let you set
+  environment variables for secret values.
+* `P12_PASSWORD`: The password for the p12 file or base64 encoded data. Defaults to no
+  password.
+* `PORT`: The port to listen on. Defaults to `42069`.
+* `CRT_FILENAME`: The crt file to use for TLS connections. Defaults to `toot-relay.crt`.
+* `KEY_FILENAME`: The key file to use for TLS connections. Defaults to `toot-relay.key`.
+
 ## Receiving ##
 
 The client needs to implement a user notification service extension that can
@@ -80,7 +99,7 @@ is a good starting point for implementing your own web push handling.
 Mastodon, and possibly others, force SSL when connecting to the push endpoint.
 The service does have rudimentary support; put files named `toot-relay.crt` and
 `toot-relay.key` in the same directory, and those will be loaded and used to
-serve HTTPS instead of HTTP.
+serve HTTPS instead of HTTP. (Also see the "Configuration" section.)
 
 In practice, it may be easier to use ngnix or another service to handle HTTPS
 traffic for you, and forward it to the service as plain HTTP.
