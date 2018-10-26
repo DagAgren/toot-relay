@@ -5,10 +5,6 @@ push notifications, and forwards the encrypted payloads it receives to an iOS
 app through APNs. It is designed to forward notifications from Mastodon to
 the iOS client Toot!, but may be of use in other cases too.
 
-A simple Dockerfile is included for running the service containerised. There is
-also a configuration file for using the Zeit Now service to host the docker
-image.
-
 ## Usage ##
 
 Run `go build`, run `./toot-relay`. It will listen on port 42069. Subscribe to web
@@ -22,6 +18,17 @@ You will need a push notification certificate, which should be put in the same
 directory, named `toot-relay.p12`. With a production certificate, both pushing
 to production and development environments works. With a development certificate,
 only development will work.
+
+## Docker ##
+
+A simple Dockerfile is included for running the service containerised. It has been
+tested with the following hosting solutions:
+
+* [Zeit Now](https://zeit.co/now) - There is also a configuration file (`now.json`)
+  for using this service to host it. It requites adding the p12 file as a base 64
+  encoded secret: `now secrets add p12-base64 "$(cat toot-relay.p12 | base64)`
+* [Heroku](https://heroku.com/) - Add a configuration var named `P12_BASE64`
+  containing the base 64 encoded p12 file.
 
 ## Status ##
 
