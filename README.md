@@ -77,6 +77,12 @@ decrypt the payloads once they arrive. The original payload is transmitted in th
 the cryptographic salt in `s`, and any extra value supplied in the push endpoint
 URL (the `extra` part as shown in the Usage section above) is passed in `x`.
 
+### Example ###
+
+An [excerpt of the Toot! code base](iOS/) for receiving and decrypting messages
+is available. You can use this as a basis for your own implementation, or
+read on for more technical details of how to do it yourself.
+
 ### Encoding ###
 
 The fields `p`, `s` and `k` are transmitted using an extended variant of z85
@@ -88,18 +94,6 @@ representing an 8, 16 or 24-bit integer similarly to how normal z85 encoding rep
 
 [z85]: https://rfc.zeromq.org/spec:32/Z85/
 [z85ext]: http://grokbase.com/t/zeromq/zeromq-dev/144nd380c4/rfc-32-z85-requiring-frames-to-be-multiples-of-4-or-5-bytes
-
-### Example ###
-
-https://gist.github.com/DagAgren/77d82e28174b57f87e194c97fae0898b
-
-This code is an excerpt from the Toot! Mastodon client code base. It is the code
-used to set up cryptographic keys, and then to decrypt a received payload from
-toot-relay.
-
-It does not include the code for actually communicating with the Mastodon instance,
-or for storing the receiver object that contains the cryptographic keys, but it
-is a good starting point for implementing your own web push handling.
 
 ## Regarding HTTPS ##
 
