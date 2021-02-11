@@ -6,6 +6,7 @@ RUN CGO_ENABLED=0 GO111MODULE=on go build -mod=vendor -ldflags "-s -w" -o toot-r
 FROM debian:latest as cert-env
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ADD AAACertificateServices.crt /user/local/share/ca-certificates/AAACertificateServices.crt
+ADD GeoTrust.crt /user/local/share/ca-certificates/GeoTrust.crt
 RUN update-ca-certificates
 
 FROM gcr.io/distroless/base
