@@ -2,25 +2,28 @@ package main
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"github.com/sideshow/apns2/payload"
+	"golang.org/x/net/http2"
 )
 
 var (
 	developmentClient *apns2.Client
-	productionClient *apns2.Client
+	productionClient  *apns2.Client
 )
 
 func main() {
@@ -31,16 +34,28 @@ func main() {
 	port := env("PORT", "42069")
 	tlsCrtFile := env("CRT_FILENAME", "toot-relay.crt")
 	tlsKeyFile := env("KEY_FILENAME", "toot-relay.key")
+	// CA_FILENAME can be set to a file that contains PEM encoded certificates that will be
+	// used as the sole root CAs when connecting to the Apple Notification Service API.
+	// If unset, the system-wide certificate store will be used.
+	caFile := env("CA_FILENAME", "")
+	var rootCAs *x509.CertPool
+
+	if caPEM, err := ioutil.ReadFile(caFile); err == nil {
+		rootCAs = x509.NewCertPool()
+		if ok := rootCAs.AppendCertsFromPEM(caPEM); !ok {
+			log.Fatalf("CA file %s specified but no CA certificates could be loaded\n", caFile)
+		}
+	}
 
 	if p12base64 != "" {
 		bytes, err := base64.StdEncoding.DecodeString(p12base64)
 		if err != nil {
-	    	log.Fatal("Base64 decoding error: ", err)
+			log.Fatal("Base64 decoding error: ", err)
 		}
 
 		cert, err := certificate.FromP12Bytes(bytes, p12password)
 		if err != nil {
-	    	log.Fatal("Error parsing certificate: ", err)
+			log.Fatal("Error parsing certificate: ", err)
 		}
 
 		developmentClient = apns2.NewClient(cert).Development()
@@ -48,19 +63,24 @@ func main() {
 	} else {
 		cert, err := certificate.FromP12File(p12file, p12password)
 		if err != nil {
-	    	log.Fatal("Error loading certificate file: ", err)
+			log.Fatal("Error loading certificate file: ", err)
 		}
 
 		developmentClient = apns2.NewClient(cert).Development()
 		productionClient = apns2.NewClient(cert).Production()
 	}
 
+	if rootCAs != nil {
+		developmentClient.HTTPClient.Transport.(*http2.Transport).TLSClientConfig.RootCAs = rootCAs
+		productionClient.HTTPClient.Transport.(*http2.Transport).TLSClientConfig.RootCAs = rootCAs
+	}
+
 	http.HandleFunc("/relay-to/", handler)
 
 	if _, err := os.Stat("toot-relay.crt"); !os.IsNotExist(err) {
-		log.Fatal(http.ListenAndServeTLS(":" + port, tlsCrtFile, tlsKeyFile, nil))
+		log.Fatal(http.ListenAndServeTLS(":"+port, tlsCrtFile, tlsKeyFile, nil))
 	} else {
-		log.Fatal(http.ListenAndServe(":" + port, nil))
+		log.Fatal(http.ListenAndServe(":"+port, nil))
 	}
 }
 
@@ -92,30 +112,30 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	notification.Topic = "cx.c3.toot"
 
 	switch request.Header.Get("Content-Encoding") {
-		case "aesgcm":
-			if publicKey, err := encodedValue(request.Header, "Crypto-Key", "dh"); err == nil {
-				payload.Custom("k", publicKey)
-			} else {
-				writer.WriteHeader(500)
-				fmt.Fprintln(writer, "Error retrieving public key:", err)
-				log.Println("Error retrieving public key:", err)
-				return
-			}
-
-			if salt, err := encodedValue(request.Header, "Encryption", "salt"); err == nil {
-				payload.Custom("s", salt)
-			} else {
-				writer.WriteHeader(500)
-				fmt.Fprintln(writer, "Error retrieving salt:", err)
-				log.Println("Error retrieving salt:", err)
-				return
-			}
-		//case "aes128gcm": // No further headers needed. However, not implemented on client side so return 415.
-		default:
-			writer.WriteHeader(415)
-			fmt.Fprintln(writer, "Unsupported Content-Encoding:", request.Header.Get("Content-Encoding"))
-			log.Println("Unsupported Content-Encoding:", request.Header.Get("Content-Encoding"))
+	case "aesgcm":
+		if publicKey, err := encodedValue(request.Header, "Crypto-Key", "dh"); err == nil {
+			payload.Custom("k", publicKey)
+		} else {
+			writer.WriteHeader(500)
+			fmt.Fprintln(writer, "Error retrieving public key:", err)
+			log.Println("Error retrieving public key:", err)
 			return
+		}
+
+		if salt, err := encodedValue(request.Header, "Encryption", "salt"); err == nil {
+			payload.Custom("s", salt)
+		} else {
+			writer.WriteHeader(500)
+			fmt.Fprintln(writer, "Error retrieving salt:", err)
+			log.Println("Error retrieving salt:", err)
+			return
+		}
+	//case "aes128gcm": // No further headers needed. However, not implemented on client side so return 415.
+	default:
+		writer.WriteHeader(415)
+		fmt.Fprintln(writer, "Unsupported Content-Encoding:", request.Header.Get("Content-Encoding"))
+		log.Println("Unsupported Content-Encoding:", request.Header.Get("Content-Encoding"))
+		return
 	}
 
 	if seconds := request.Header.Get("TTL"); seconds != "" {
@@ -129,10 +149,10 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	switch request.Header.Get("Urgency") {
-		case "very-low", "low":
-			notification.Priority = apns2.PriorityLow
-		default:
-			notification.Priority = apns2.PriorityHigh
+	case "very-low", "low":
+		notification.Priority = apns2.PriorityLow
+	default:
+		notification.Priority = apns2.PriorityHigh
 	}
 
 	var client *apns2.Client
@@ -188,19 +208,19 @@ func encodedValue(header http.Header, name, key string) (string, error) {
 }
 
 func parseKeyValues(values string) map[string]string {
-  f := func(c rune) bool {
+	f := func(c rune) bool {
 		return c == ';'
 	}
 
-  entries := strings.FieldsFunc(values, f)
+	entries := strings.FieldsFunc(values, f)
 
-  m := make(map[string]string)
-  for _, entry := range entries {
-    parts := strings.Split(entry, "=")
-    m[parts[0]] = parts[1]
-  }
+	m := make(map[string]string)
+	for _, entry := range entries {
+		parts := strings.Split(entry, "=")
+		m[parts[0]] = parts[1]
+	}
 
-  return m
+	return m
 }
 
 var z85digits = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#")
@@ -222,7 +242,7 @@ func encode85(bytes []byte) string {
 		value := binary.BigEndian.Uint32(src)
 
 		for i := 0; i < 5; i++ {
-			dest[4 - i] = z85digits[value % 85]
+			dest[4-i] = z85digits[value%85]
 			value /= 85
 		}
 
@@ -238,8 +258,8 @@ func encode85(bytes []byte) string {
 			value |= int(src[i])
 		}
 
-		for i := 0; i < suffixLength + 1; i++ {
-			dest[suffixLength - i] = z85digits[value % 85]
+		for i := 0; i < suffixLength+1; i++ {
+			dest[suffixLength-i] = z85digits[value%85]
 			value /= 85
 		}
 	}
