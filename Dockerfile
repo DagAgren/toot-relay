@@ -5,4 +5,6 @@ RUN CGO_ENABLED=0 GO111MODULE=on go build -mod=vendor -ldflags "-s -w" -o toot-r
 
 FROM gcr.io/distroless/base
 COPY --from=build-env /go/src/toot-relay/toot-relay /
+ADD cas.crt /cas.crt
+ENV CA_FILENAME /cas.crt
 CMD ["/toot-relay"]
