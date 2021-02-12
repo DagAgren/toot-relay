@@ -68,6 +68,8 @@ The service will read a few environment variables that let you make some adjustm
 * `PORT`: The port to listen on. Defaults to `42069`.
 * `CRT_FILENAME`: The crt file to use for TLS connections. Defaults to `toot-relay.crt`.
 * `KEY_FILENAME`: The key file to use for TLS connections. Defaults to `toot-relay.key`.
+* `CA_FILENAME`: A file containing PEM encoded certificates that will override the system
+  root CAs when connecting to the Apple Notification Service API if set. Default: unset.
 
 ## Receiving ##
 
