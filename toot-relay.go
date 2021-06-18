@@ -24,9 +24,11 @@ import (
 var (
 	developmentClient *apns2.Client
 	productionClient  *apns2.Client
+	topic             string
 )
 
 func main() {
+	topic = env("TOPIC", "cx.c3.toot")
 	p12file := env("P12_FILENAME", "toot-relay.p12")
 	p12base64 := env("P12_BASE64", "")
 	p12password := env("P12_PASSWORD", "")
@@ -77,7 +79,7 @@ func main() {
 
 	http.HandleFunc("/relay-to/", handler)
 
-	if _, err := os.Stat("toot-relay.crt"); !os.IsNotExist(err) {
+	if _, err := os.Stat(tlsCrtFile); !os.IsNotExist(err) {
 		log.Fatal(http.ListenAndServeTLS(":"+port, tlsCrtFile, tlsKeyFile, nil))
 	} else {
 		log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -109,7 +111,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	notification.Payload = payload
-	notification.Topic = "cx.c3.toot"
+	notification.Topic = topic
 
 	switch request.Header.Get("Content-Encoding") {
 	case "aesgcm":
