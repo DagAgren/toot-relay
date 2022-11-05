@@ -50,10 +50,6 @@ to support in this service, as it just needs to ignore the extra headers
 not support it and this it is rejected. If your client-side code can handle it,
 uncomment the line referring to it.
 
-The service could probably be made more efficient by queuing up APNs accesses
-and not waiting for them to finish before returning from the request handler,
-but this has not been implemented at the moment.
-
 ## Configuration ##
 
 The service will read a few environment variables that let you make some adjustments.
