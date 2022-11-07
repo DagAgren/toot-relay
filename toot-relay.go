@@ -55,7 +55,7 @@ func worker(workerId int) {
 
 		if err != nil {
 			log.Println("Push error:", err)
-			return
+			continue
 		}
 
 		if res.Sent() {
