@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -31,11 +32,8 @@ var (
 	productionClient  *apns2.Client
 	topic             string
 	messageChan       chan *Message
-)
-
-const (
-	maxWorkers     = 4
-	maxQueueLength = 1024
+	maxQueueSize      int
+	maxWorkers        int
 )
 
 func worker(workerId int) {
@@ -70,6 +68,10 @@ func worker(workerId int) {
 }
 
 func main() {
+	flag.IntVar(&maxQueueSize, "max-queue-size", 4096, "Maximum number of messages to queue")
+	flag.IntVar(&maxWorkers, "max-workers", 8, "Maximum number of workers")
+	flag.Parse()
+
 	topic = env("TOPIC", "cx.c3.toot")
 	p12file := env("P12_FILENAME", "toot-relay.p12")
 	p12base64 := env("P12_BASE64", "")
@@ -121,7 +123,7 @@ func main() {
 
 	http.HandleFunc("/relay-to/", handler)
 
-	messageChan = make(chan *Message, maxQueueLength)
+	messageChan = make(chan *Message, maxQueueSize)
 	for i := 1; i <= maxWorkers; i++ {
 		go worker(i)
 	}
