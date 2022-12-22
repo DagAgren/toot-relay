@@ -1,4 +1,4 @@
-toot-relay
+webpush-apn-relay
 *.p12
 *.crt
 *.key
