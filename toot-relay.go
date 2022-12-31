@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -21,12 +22,57 @@ import (
 	"golang.org/x/net/http2"
 )
 
+type Message struct {
+	isProduction bool
+	notification *apns2.Notification
+}
+
 var (
 	developmentClient *apns2.Client
 	productionClient  *apns2.Client
+	topic             string
+	messageChan       chan *Message
+	maxQueueSize      int
+	maxWorkers        int
 )
 
+func worker(workerId int) {
+	log.Printf("starting worker %d", workerId)
+	defer log.Printf("stopping worker %d", workerId)
+
+	var client *apns2.Client
+
+	for msg := range messageChan {
+		if msg.isProduction {
+			client = productionClient
+		} else {
+			client = developmentClient
+		}
+
+		res, err := client.Push(msg.notification)
+
+		if err != nil {
+			log.Println("Push error:", err)
+			continue
+		}
+
+		if res.Sent() {
+			log.Printf("Sent notification to %s -> %v %v %v", msg.notification.DeviceToken, res.StatusCode, res.ApnsID, res.Reason)
+			log.Println("Expiration:", msg.notification.Expiration)
+			log.Println("Priority:", msg.notification.Priority)
+			log.Println("CollapseID:", msg.notification.CollapseID)
+		} else {
+			log.Printf("Failed to send: %v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
+		}
+	}
+}
+
 func main() {
+	flag.IntVar(&maxQueueSize, "max-queue-size", 4096, "Maximum number of messages to queue")
+	flag.IntVar(&maxWorkers, "max-workers", 8, "Maximum number of workers")
+	flag.Parse()
+
+	topic = env("TOPIC", "cx.c3.toot")
 	p12file := env("P12_FILENAME", "toot-relay.p12")
 	p12base64 := env("P12_BASE64", "")
 	p12password := env("P12_PASSWORD", "")
@@ -77,7 +123,12 @@ func main() {
 
 	http.HandleFunc("/relay-to/", handler)
 
-	if _, err := os.Stat("toot-relay.crt"); !os.IsNotExist(err) {
+	messageChan = make(chan *Message, maxQueueSize)
+	for i := 1; i <= maxWorkers; i++ {
+		go worker(i)
+	}
+
+	if _, err := os.Stat(tlsCrtFile); !os.IsNotExist(err) {
 		log.Fatal(http.ListenAndServeTLS(":"+port, tlsCrtFile, tlsKeyFile, nil))
 	} else {
 		log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -109,7 +160,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	notification.Payload = payload
-	notification.Topic = "cx.c3.toot"
+	notification.Topic = topic
 
 	switch request.Header.Get("Content-Encoding") {
 	case "aesgcm":
@@ -155,33 +206,10 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 		notification.Priority = apns2.PriorityHigh
 	}
 
-	var client *apns2.Client
-	if isProduction {
-		client = productionClient
-	} else {
-		client = developmentClient
-	}
+	messageChan <- &Message{isProduction, notification}
 
-	res, err := client.Push(notification)
-	if err != nil {
-		writer.WriteHeader(500)
-		fmt.Fprintln(writer, "Push error:", err)
-		log.Println("Push error:", err)
-		return
-	}
-
-	if res.Sent() {
-		writer.Header().Add("Location", fmt.Sprintf("https://not-supported/%v", res.ApnsID))
-		writer.WriteHeader(201)
-		log.Printf("Sent notification to %s -> %v %v %v", notification.DeviceToken, res.StatusCode, res.ApnsID, res.Reason)
-		log.Println("Expiration:", notification.Expiration)
-		log.Println("Priority:", notification.Priority)
-		log.Println("CollapseID:", notification.CollapseID)
-	} else {
-		writer.WriteHeader(res.StatusCode)
-		fmt.Fprintln(writer, res.Reason)
-		log.Printf("Failed to send: %v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
-	}
+	// always reply w/ success, since we don't know how apple responded
+	writer.WriteHeader(201)
 }
 
 func env(name, defaultValue string) string {
