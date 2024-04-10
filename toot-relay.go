@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +19,9 @@ import (
 	"github.com/sideshow/apns2/certificate"
 	"github.com/sideshow/apns2/payload"
 	"golang.org/x/net/http2"
+
+	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 type Message struct {
@@ -68,6 +70,13 @@ func worker(workerId int) {
 }
 
 func main() {
+	tracer.Start(
+		tracer.WithService("webpush-apn-relay"),
+	)
+	defer tracer.Stop()
+
+	mux := httptrace.NewServeMux()
+
 	flag.IntVar(&maxQueueSize, "max-queue-size", 4096, "Maximum number of messages to queue")
 	flag.IntVar(&maxWorkers, "max-workers", 8, "Maximum number of workers")
 	flag.Parse()
@@ -86,7 +95,7 @@ func main() {
 	caFile := env("CA_FILENAME", "")
 	var rootCAs *x509.CertPool
 
-	if caPEM, err := ioutil.ReadFile(caFile); err == nil {
+	if caPEM, err := os.ReadFile(caFile); err == nil {
 		rootCAs = x509.NewCertPool()
 		if ok := rootCAs.AppendCertsFromPEM(caPEM); !ok {
 			log.Fatalf("CA file %s specified but no CA certificates could be loaded\n", caFile)
@@ -121,7 +130,7 @@ func main() {
 		productionClient.HTTPClient.Transport.(*http2.Transport).TLSClientConfig.RootCAs = rootCAs
 	}
 
-	http.HandleFunc("/relay-to/", handler)
+	mux.HandleFunc("/relay-to/", handler)
 
 	messageChan = make(chan *Message, maxQueueSize)
 	for i := 1; i <= maxWorkers; i++ {
@@ -129,9 +138,9 @@ func main() {
 	}
 
 	if _, err := os.Stat(tlsCrtFile); !os.IsNotExist(err) {
-		log.Fatal(http.ListenAndServeTLS(":"+port, tlsCrtFile, tlsKeyFile, nil))
+		log.Fatal(http.ListenAndServeTLS(":"+port, tlsCrtFile, tlsKeyFile, mux))
 	} else {
-		log.Fatal(http.ListenAndServe(":"+port, nil))
+		log.Fatal(http.ListenAndServe(":"+port, mux))
 	}
 }
 
