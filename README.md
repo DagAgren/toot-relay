@@ -50,11 +50,14 @@ to support in this service, as it just needs to ignore the extra headers
 not support it and this it is rejected. If your client-side code can handle it,
 uncomment the line referring to it.
 
-The service could probably be made more efficient by queuing up APNs accesses
-and not waiting for them to finish before returning from the request handler,
-but this has not been implemented at the moment.
-
 ## Configuration ##
+
+### Runtime Flags
+
+- `-max-queue-size`: sets the size of the channel that buffers incoming notifications. Raising this value will consume more RAM (Go will pre-allocate the entire buffer to hold `N * size of message`). Defaults to `4096`.
+- `-max-workers`: sets the number of parallel goroutines that will send notifications to Apple. Raising it will drain the queue more quickly at a small cost to increased resource usage. Each goroutine uses gets approx. 2kb of memory. This can safely scale into the thousands, if needed. See [this post](https://tpaschalis.github.io/goroutines-size/) for scaling considerations. Defaults to `8`.
+
+### Environment Variables
 
 The service will read a few environment variables that let you make some adjustments.
 
